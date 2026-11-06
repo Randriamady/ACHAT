@@ -1,0 +1,103 @@
+# Codewise configuration — place in your repo root as .codewise.yaml
+# Docs: https://github.com/naveenkumarbaskaran/codewise#configuration
+
+# ── LLM Settings ──────────────────────────────────────────────────
+model: ollama/phi3          # Any litellm-supported model
+# provider: openai           # Auto-detected from model name
+# api_key: sk-...            # Or set CODEWISE_API_KEY env var
+# api_base: https://...      # Custom endpoint (Ollama, Azure, etc.)
+temperature: 0.1
+max_tokens: 4096
+
+# ── Capabilities ──────────────────────────────────────────────────
+review_enabled: true
+security_enabled: true
+testgen_enabled: false
+docgen_enabled: false
+
+# ── Review Settings ───────────────────────────────────────────────
+min_severity: low            # Minimum severity to report: critical|high|medium|low|info
+fail_on: high                # Exit code 1 if findings >= this severity (or "none")
+output_format: terminal      # terminal|json|sarif|markdown
+# extra_instructions: "Focus on thread safety in async handlers."
+
+# ── File Filtering ────────────────────────────────────────────────
+include_patterns:
+  - "**/*"
+exclude_patterns:
+  - "**/*.lock"
+  - "**/node_modules/**"
+  - "**/.git/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/__pycache__/**"
+  - "**/*.min.js"
+  - "**/*.min.css"
+max_file_size: 100000        # Skip files larger than this (bytes)
+
+# ── Rules ─────────────────────────────────────────────────────────
+rules:
+  # Enable standard rule packs (see: codewise rules --list-packs)
+  enable_packs:
+    - python-best-practices
+    - security-basics
+    # - javascript-best-practices
+    # - go-best-practices
+    # - java-best-practices
+    # - rust-best-practices
+
+  # Disable specific rules from packs
+  # disable:
+  #   - py/no-print
+  #   - sec/no-http-urls
+
+  # Override severity of specific rules
+  # severity_overrides:
+  #   py/no-print: info
+  #   sec/no-hardcoded-secrets: high
+
+  # Custom rules
+  custom: []
+    # - id: my-org/no-debug-flags
+    #   pattern: "DEBUG\s*=\s*True"
+    #   file_pattern: "*.py"
+    #   severity: high
+    #   category: best-practice
+    #   message: "Remove debug flags before merging."
+    #
+    # - id: my-org/require-changelog
+    #   llm_check: "If any public API function signature changed, flag if CHANGELOG.md wasn't updated."
+    #   file_pattern: "*.py"
+    #   severity: medium
+    #   category: maintainability
+    #
+    # - id: my-org/protected-branch-checks
+    #   pattern: "FIXME|HACK|XXX"
+    #   file_pattern: "*.py"
+    #   severity: high
+    #   category: maintainability
+    #   message: "Resolve all FIXME/HACK comments before merging to main."
+    #   branches: [main, master, release/*]
+
+# ── Git Hooks ─────────────────────────────────────────────────────
+hooks:
+  # pre-commit: runs on staged files before commit
+  pre_commit:
+    enabled: false
+    review: true
+    security: true
+    fail_on: high            # Block commit if findings >= this severity
+    # rules override for hooks (uses main rules section if not set)
+
+  # pre-push: runs on commits being pushed (vs remote branch)
+  pre_push:
+    enabled: false
+    review: true
+    security: true
+    fail_on: high            # Block push if findings >= this severity
+    include_patterns:
+      - "**/*.py"
+      - "**/*.js"
+      - "**/*.ts"
+    max_files: 20            # Skip if > N files changed (avoid slow pushes)
+    timeout: 120             # Max seconds for the hook to run
