@@ -1,0 +1,564 @@
+DOCUMENT DE REFERENCE
+CRITERES DE FILTRES, KPI, REGROUPEMENT ET ELIGIBILITE
+APPLICATION ACHATS LOCAUX
+
+Version : 1.0
+Date : 19/08/2026
+
+======================================================================
+1. OBJET
+======================================================================
+
+Ce document formalise les regles fonctionnelles utilisees par
+l'application pour :
+
+- filtrer les dossiers d'achat ;
+- calculer les KPI ;
+- constituer le tableau des dossiers en retard ;
+- regrouper les dossiers du PV Comite ;
+- determiner l'eligibilite d'un dossier pour le PV Comite.
+
+Les criteres ci-dessous correspondent au fonctionnement actuel de
+l'application.
+
+======================================================================
+2. SOURCE DES DONNEES
+======================================================================
+
+Les traitements utilisent les donnees des dossiers d'achat.
+
+Champs principalement utilises :
+
+- numero_da
+- date
+- date_reception_physique
+- filiale
+- departement_demandeur
+- designation_demandee
+- designation_commandee
+- code_budget
+- montant_budget
+- statut_budget
+- fournisseur_retenu
+- pv_numero
+- type_paiement
+- delai_paiement
+- date_envoi_consultation
+- date_envoi_tco
+- date_valid_filiale
+- date_valid_comite
+- date_envoi_bc
+- date_envoi_cdg
+- date_paiement
+- date_prevue_livraison
+- statut
+- acheteur
+- priorite
+- cas_exceptionnel
+- obs
+
+Les proprietes calculees suivantes sont utilisees pour les traitements :
+
+- _criticite
+- _retards
+- _stepDelays
+- _hasRetard
+- _anomalies
+- _hasAnomalies
+- _joursRetard
+
+======================================================================
+3. CRITERES DES FILTRES ACHATS
+======================================================================
+
+3.1 Regle generale
+
+Les filtres sont combines avec une logique ET.
+Un dossier doit respecter tous les filtres renseignes pour etre conserve.
+Un filtre vide ne restreint pas les resultats.
+
+Les valeurs des filtres textuels sont comparees apres normalisation :
+
+- suppression des espaces inutiles ;
+- comparaison insensible a la casse ;
+- comparaison insensible aux accents ;
+- comparaison exacte sur la valeur normalisee.
+
+3.2 Filtre Acheteur
+
+Champ : acheteur.
+
+Le dossier est conserve si la valeur de son acheteur correspond exactement
+au choix selectionne apres normalisation.
+
+Pour les roles Achat et Utilisateur, les donnees sont egalement limitees a
+l'acheteur lie au compte connecte.
+
+3.3 Filtre Filiale
+
+Champ : filiale.
+
+Le dossier est conserve si sa filiale correspond exactement a la filiale
+selectionnee.
+
+3.4 Filtre Departement
+
+Champ : departement_demandeur.
+
+Le dossier est conserve si son departement demandeur correspond exactement
+au departement selectionne.
+
+3.5 Filtre Priorite
+
+Champ : priorite.
+
+Le dossier est conserve si sa priorite correspond exactement a la priorite
+selectionnee.
+
+3.6 Filtre Circuit
+
+Le circuit est determine par le champ delai_paiement.
+
+Circuit B :
+
+- 25% commande + 75% livraison ;
+- 30% commande + 70% livraison ;
+- 50% commande + 50% livraison ;
+- 70% commande + 30% livraison ;
+- 75% commande + 25% livraison ;
+- A la commande ;
+- Au comptant.
+
+Si le delai_paiement appartient a cette liste, le dossier est en Circuit B.
+Sinon, il est considere en Circuit A.
+
+Filtre A : conserve les dossiers qui ne sont pas en Circuit B.
+Filtre B : conserve uniquement les dossiers en Circuit B.
+
+3.7 Filtre Criticite
+
+Champ calcule : _criticite.
+
+Valeurs possibles :
+
+- Normal ;
+- Attention ;
+- Critique ;
+- Tres Critique.
+
+Le dossier est conserve si sa criticite correspond exactement au niveau
+selectionne.
+
+Regles principales de criticite :
+
+- priorite TRES URGENT : Tres Critique ;
+- retard superieur a 168 heures : Tres Critique ;
+- autre retard : Critique ;
+- dossier age de plus de 48 heures apres l'envoi consultation sans TCO :
+  Attention ;
+- sinon : Normal.
+
+Un dossier marque Cas exceptionnel est traite comme Normal pour la criticite
+effective du tableau de bord.
+
+3.8 Filtre Anomalies
+
+Champ calcule : _hasAnomalies.
+
+Valeur 0 : conserve les dossiers sans anomalie.
+Valeur 1 : conserve les dossiers avec au moins une anomalie.
+
+3.9 Filtre Retard
+
+Champ calcule : _hasRetard.
+
+Valeur 1 : conserve uniquement les dossiers avec au moins un retard.
+
+3.10 Filtre Categorie de retard
+
+Champ calcule : _stepDelays.
+
+Le dossier est conserve si une etape en retard possede un nom egal a la
+categorie selectionnee apres normalisation.
+
+Etapes possibles :
+
+- Consultation ;
+- Envoi TCO ;
+- Validation Filiale ;
+- Validation Comite ;
+- Signature BC ;
+- Controle de Gestion ;
+- Paiement ;
+- Livraison.
+
+3.11 Filtre Annee
+
+Champ : date.
+
+L'annee du dossier est extraite de la date et comparee a l'annee choisie.
+
+3.12 Filtre Mois
+
+Champ : date.
+
+Le mois est extrait de la date sous la forme numerique MM.
+Le dossier est conserve si le mois correspond au mois choisi.
+
+3.13 Recherche generale Achats
+
+La recherche est comparee exactement apres normalisation avec les champs :
+
+- numero_da ;
+- pv_numero ;
+- designation_demandee ;
+- designation_commandee ;
+- fournisseur_retenu ;
+- filiale ;
+- acheteur ;
+- departement_demandeur.
+
+La recherche doit correspondre a au moins un de ces champs.
+
+3.14 Persistance des filtres
+
+Les filtres sont sauvegardes par onglet.
+Ils sont restaures lors d'un retour sur l'onglet ou d'une actualisation.
+Le bouton de reinitialisation vide tous les filtres et recharge l'ensemble
+accessible.
+
+======================================================================
+4. CRITERES DES KPI PRINCIPAUX
+======================================================================
+
+Les KPI principaux sont affiches sous le titre :
+KPI PRICIPAUX regrouper par DA.
+
+Ils sont calcules a partir des N° DA distincts.
+Deux lignes possedant le meme numero_da sont comptees une seule fois pour
+un meme KPI.
+
+4.1 DA TOTAL (distinct)
+
+Compte le nombre de valeurs numero_da distinctes et non vides.
+
+4.2 TOTAL BC
+
+Compte le nombre de numero_da distincts dont le champ num_bc est renseigne.
+
+4.3 En attente CDG
+
+Compte les numero_da distincts dont statut_budget est vide ou nul.
+
+4.4 Valide comite
+
+Compte les numero_da distincts dont :
+
+- statut_budget est renseigne ;
+- date_valid_comite est renseignee.
+
+4.5 Attente comite
+
+Compte les numero_da distincts dont :
+
+- statut_budget est renseigne ;
+- date_valid_comite est vide.
+
+4.6 Livre
+
+Compte les numero_da distincts dont statut vaut exactement Livre.
+
+4.7 KPI supplementaires
+
+Les KPI supplementaires peuvent notamment afficher :
+
+- Cas exceptionnel ;
+- TOTAL PV ;
+- BC Stand-by ;
+- BC ATTENTE CHOIX FILIALE ;
+- retards de Consultation ;
+- retards d'Envoi TCO ;
+- retards de Signature BC ;
+- retards de Validation Filiale ;
+- retards de Livraison ;
+- Attention ;
+- Critique.
+
+======================================================================
+5. CRITERES DES KPI SUIVI OPERATIONNEL PAR DOSSIER
+======================================================================
+
+5.1 Base commune des lignes
+
+Tous les KPI du bloc SUIVI OPERATIONNEL PAR DOSSIER utilisent la meme base
+que le tableau Dossiers en retard.
+
+Une ligne appartient a cette base si :
+
+- son statut n'est pas Livre ; et
+- elle contient au moins un retard, une anomalie, une criticite Tres
+  Critique ou un Cas exceptionnel ; et
+- elle respecte la recherche active du tableau, lorsqu'une recherche est
+  saisie.
+
+Les dossiers Livres sont exclus du bloc et du detail affiche apres clic.
+
+5.2 Normal
+
+Compte les lignes de la base commune dont la criticite effective est Normal.
+
+La criticite effective tient compte du traitement des Cas exceptionnels.
+
+5.3 Cas exceptionnel
+
+Compte les lignes de la base commune dont cas_exceptionnel est actif.
+
+Sont reconnus comme actifs notamment :
+
+- true ;
+- 1 ;
+- oui ;
+- yes ;
+- x ;
+- cas exceptionnel.
+
+5.4 Livraison retard
+
+Compte les lignes de la base commune dont _retards contient l'etape
+Livraison.
+
+Les dossiers au statut Livre ne sont jamais comptes.
+Le clic sur le KPI affiche exactement ces memes lignes.
+
+5.5 Validation Filiale avant TCO
+
+Compte les lignes de la base commune dont _retards contient l'etape
+Validation Filiale.
+
+Le clic affiche les memes lignes.
+
+5.6 BC sans comite
+
+Compte les lignes de la base commune dont _anomalies contient exactement
+l'anomalie BC sans Comite.
+
+Le clic affiche les memes lignes.
+
+5.7 Recherche dans le tableau des retards
+
+La recherche porte sur :
+
+- designation_demandee ;
+- numero_da ;
+- filiale.
+
+Elle est insensible a la casse et conserve uniquement les lignes qui
+correspondent a au moins un champ.
+
+======================================================================
+6. CRITERES DE CALCUL DES RETARDS
+======================================================================
+
+6.1 Circuit A
+
+Etapes suivies :
+
+1. Consultation : date_reception_physique vers date_envoi_consultation,
+   delai maximum 24 heures.
+2. Envoi TCO : date_envoi_consultation vers date_envoi_tco,
+   delai maximum 72 heures.
+3. Validation Filiale : date_envoi_tco vers date_valid_filiale,
+   delai maximum 24 heures.
+4. Validation Comite : date_valid_filiale vers date_valid_comite,
+   comparee a la prochaine date de comite.
+5. Signature BC : date_valid_comite vers date_envoi_bc,
+   delai maximum 24 heures.
+6. Livraison : date_envoi_bc vers date_prevue_livraison,
+   delai maximum 72 heures.
+
+6.2 Circuit B
+
+Etapes suivies :
+
+1. Consultation : date_reception_physique vers date_envoi_consultation,
+   delai maximum 24 heures.
+2. Envoi TCO : date_envoi_consultation vers date_envoi_tco,
+   delai maximum 72 heures.
+3. Validation Filiale : date_envoi_tco vers date_valid_filiale,
+   delai maximum 24 heures.
+4. Validation Comite : date_valid_filiale vers date_valid_comite.
+5. Signature BC : date_valid_comite vers date_envoi_bc,
+   delai maximum 24 heures.
+6. Controle de Gestion : date_envoi_bc vers date_envoi_cdg,
+   delai maximum 48 heures.
+7. Paiement : date_envoi_cdg vers date_paiement,
+   delai maximum 72 heures.
+8. Livraison : date_paiement vers date_prevue_livraison,
+   delai maximum 72 heures.
+
+Une etape sans date de depart est consideree comme non demarree.
+Une etape sans date de fin est calculee jusqu'a la date courante.
+
+======================================================================
+7. CRITERES D'ANOMALIES
+======================================================================
+
+Les anomalies sont detectees notamment dans les cas suivants :
+
+- TCO sans Consultation ;
+- Validation Filiale sans TCO ;
+- Validation Comite sans Validation Filiale ;
+- BC sans Comite ;
+- CDG sans BC en Circuit B ;
+- Paiement sans CDG en Circuit B ;
+- Livraison sans Paiement en Circuit B ;
+- Livraison sans BC en Circuit A ;
+- TCO avant Consultation ;
+- Validation Filiale avant TCO ;
+- Validation Comite avant Filiale ;
+- BC avant Comite ;
+- CDG avant BC ;
+- Paiement avant CDG ;
+- Livraison avant Paiement ;
+- Livraison avant BC.
+
+Chaque anomalie possede une criticite, generalement Critique ou Attention.
+
+======================================================================
+8. ELIGIBILITE PV COMITE
+======================================================================
+
+Un dossier est eligible au PV Comite si toutes les regles suivantes sont
+respectees :
+
+1. La date_valid_comite est vide ou non renseignee ; et
+2. au moins une des conditions suivantes est vraie :
+   - statut_budget est renseigne ;
+   - code_budget vaut Stock ou Stocks, sans tenir compte de la casse.
+
+Un dossier dont date_valid_comite est renseignee n'est pas eligible, meme si
+son statut budget est renseigne.
+
+Un dossier code Stock ou Stocks peut etre eligible meme si statut_budget est
+vide, sous reserve que date_valid_comite soit vide.
+
+======================================================================
+9. CRITERES DE REGROUPEMENT DES DOSSIERS PV
+======================================================================
+
+Les dossiers eligibles sont regroupes avec la cle composee de :
+
+- numero_da ;
+- fournisseur_retenu ;
+- statut_budget ;
+- type_paiement ;
+- pv_numero.
+
+Deux dossiers appartiennent au meme groupe uniquement si les cinq valeurs
+sont identiques apres conversion en texte et suppression des espaces
+exterieurs.
+
+Un changement dans une seule de ces valeurs cree un groupe different.
+
+Le pv_numero fait partie de la cle : deux dossiers identiques mais portant
+des numeros PV differents sont donc separes.
+
+======================================================================
+10. AGREGATION D'UN GROUPE PV
+======================================================================
+
+Pour chaque groupe :
+
+- designation_commandee : concatener les valeurs non vides avec " + ";
+- montant_budget : prendre la valeur numerique maximale ;
+- montant_ht : calculer la somme ;
+- quantite : calculer la somme ;
+- gain_achat : calculer la somme ;
+- ecart_budget : calculer la somme ;
+- prix_unitaire : moyenne ponderee par quantite ;
+- prix_reference : moyenne ponderee par quantite ;
+- ecart_pourcentage : moyenne ponderee par montant_ht ;
+- champs texte et dates : premiere valeur non vide ;
+- pv_numero : derniere valeur non vide du groupe.
+
+Si une moyenne ponderee ne peut pas etre calculee, la valeur non vide de
+secours ou la moyenne simple est utilisee selon le champ.
+
+Les valeurs numeriques agregees doivent rester de type numerique pour leur
+formatage et leur export.
+
+======================================================================
+11. RECHERCHE PV
+======================================================================
+
+La recherche PV accepte plusieurs termes separes par :
+
+- espace ;
+- virgule ;
+- point-virgule ;
+- retour a la ligne.
+
+Les champs recherches sont notamment :
+
+- pv_numero ;
+- numero_da ;
+- fournisseur_retenu ;
+- filiale ;
+- acheteur ;
+- designation_commandee ;
+- statut_budget.
+
+La recherche est insensible a la casse et aux accents.
+
+======================================================================
+12. COHERENCE ENTRE KPI ET TABLEAUX
+======================================================================
+
+Pour eviter les ecarts d'affichage :
+
+- un KPI operationnel doit utiliser la meme selection que le tableau
+  correspondant ;
+- le clic sur un KPI doit reutiliser le meme predicate de selection ;
+- les dossiers Livres doivent rester exclus du KPI Livraison retard ;
+- la recherche active du tableau doit etre prise en compte dans le compteur
+  si le compteur est affiche pour la vue recherchee ;
+- un regroupement PV ne doit pas etre confondu avec un comptage de lignes
+  Achats : le PV compte des groupes, alors que le tableau Achats compte des
+  dossiers.
+
+======================================================================
+13. REGLES DE VALIDATION FONCTIONNELLE
+======================================================================
+
+Filtres :
+
+- verifier qu'un filtre textuel ne conserve que les valeurs exactes ;
+- verifier que plusieurs filtres sont combines avec ET ;
+- verifier que le reset restitue tous les dossiers accessibles ;
+- verifier que le filtre Circuit A/B respecte delai_paiement.
+
+KPI :
+
+- verifier que les KPI principaux comptent des DA distincts ;
+- verifier que les KPI operationnels correspondent aux lignes du tableau ;
+- verifier que les dossiers Livres sont exclus de Livraison retard ;
+- verifier que le clic sur chaque KPI affiche le meme ensemble que son
+  compteur.
+
+Eligibilite :
+
+- statut budget renseigne + date comite vide : eligible ;
+- statut budget vide + code Stock + date comite vide : eligible ;
+- date comite renseignee : non eligible ;
+- statut budget vide + code budget autre que Stock : non eligible.
+
+Regroupement :
+
+- deux lignes avec les cinq memes composantes : un seul groupe ;
+- PV differents : groupes differents ;
+- fournisseurs differents : groupes differents ;
+- types de paiement differents : groupes differents.
+
+======================================================================
+FIN DU DOCUMENT
+======================================================================

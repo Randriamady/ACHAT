@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pilotage Achats Locaux</title>
+<script src="/src/libs/xlsx.full.min.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BjsoT4h-.css">
+</head>
+<body>
+
+<!-- ===== LOADER ===== -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loader-container">
+    <div class="spinner"></div>
+    <p>Chargement en cours...</p>
+    <span class="loader-sub">Veuillez patienter</span>
+  </div>
+</div>
+
+<div id="authBox" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div>
+        <h1><center>Connexion</center></h1>
+      </div>
+    </div>
+
+    <form id="authForm" class="auth-form">
+      <div class="field-group">
+        <label for="loginIdentifier">Identifiant</label>
+        <input id="loginIdentifier" type="text" placeholder="" required>
+      </div>
+      <div class="field-group">
+        <label for="loginPassword">Mot de passe</label>
+        <input id="loginPassword" type="password" placeholder="" required>
+      </div>
+      <button type="submit">Se connecter</button>
+    </form>
+
+  </div>
+</div>
+
+<div id="appShell" style="display:none;">
+
+<!-- Navigation -->
+<div class="nav" id="navBar" ondblclick="expandFilterBarOnDblClick(event)">
+  <div class="nav-tabs">
+    <div class="nav-tab" onclick="switchTab('dossiers')">📋 Achats</div>
+    <div class="nav-tab active" onclick="switchTab('dashboard')">📊 Tableau de Bord</div>
+    <div class="nav-tab" onclick="switchTab('pv')">📄 PV Comité</div>
+    <div class="nav-tab" onclick="switchTab('admin')">🛠️ Admin</div>
+    <div class="nav-tab" onclick="refreshConfiguredData()" role="button" title="Actualiser l'application">🔄 Actualiser</div>
+  </div>
+  <div class="nav-user" id="navUserInfo">
+    <input id="pvFilterInput" class="search-input" type="text" placeholder="Rechercher un N°PV" oninput="filterPVTable()" style="max-width:260px;min-width:220px;flex:1 1 220px;">
+    <button id="connectedUsersButton" class="nav-user-button nav-user-online" type="button" disabled aria-label="Utilisateurs en ligne">En ligne</button>
+    <button id="navUserName" class="nav-user-button" type="button" onclick="openProfileEditor()">Connecté</button>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar" id="filterBar">
+  <div class="filter-bar-header">
+    <span class="filter-count" id="filterCount"></span>
+  </div>
+  <div class="filter-bar-controls" id="filterBarControls">
+    <div class="pv-filter-dropdown" id="pvFilterDropdown">
+      <button class="pv-filter-trigger" id="pvFilterTrigger" type="button" onclick="togglePvFilterMenu(event)">Tous les N°PV</button>
+      <div class="pv-filter-menu" id="pvFilterMenu" role="group" aria-label="Filtrer par N°PV">
+        <label class="pv-filter-option"><input type="checkbox" value="" onchange="togglePvFilterOption(this)"> Tous les N°PV</label>
+        <div id="pvFilterOptions"></div>
+      </div>
+    </div>
+    <select id="fPv" multiple size="4" onchange="applyFilters()" aria-hidden="true" tabindex="-1"><option value="">Tous les N°PV</option></select>
+    <select id="fAcheteur" onchange="applyFilters()"><option value="">Tous acheteurs</option></select>
+    <select id="fFiliale" onchange="applyFilters()"><option value="">Toutes filiales</option></select>
+    <select id="fDept" onchange="applyFilters()"><option value="">Tous depts</option></select>
+    <select id="fPriorite" onchange="applyFilters()"><option value="">Toutes priorités</option></select>
+    <select id="fCircuit" onchange="applyFilters()"><option value="">Tous circuits</option><option value="A">Circuit A (Sans paiement anticipé)</option><option value="B">Circuit B (Avec paiement anticipé)</option></select>
+    <select id="fAnomalies" onchange="applyFilters()"><option value="">Tous dossiers</option><option value="0">Sans anomalies</option><option value="1">Avec anomalies</option></select>
+    <select id="fCriticite" onchange="applyFilters()"><option value="">Toute criticité</option><option value="Normal">Normal</option><option value="Attention">Attention</option><option value="Critique">Critique</option><option value="Très Critique">Très Critique</option></select>
+    <select id="fRetard" onchange="applyFilters()"><option value="">Tous dossiers</option><option value="1">En retard uniquement</option></select>
+    <select id="fCatRetard" onchange="applyFilters()"><option value="">Tous retards</option></select>
+    <select id="fMois" onchange="applyFilters()"><option value="">Tous mois</option></select>
+    <select id="fAnnee" onchange="applyFilters()"><option value="">Toutes années</option></select>
+    <button class="reset-btn" onclick="resetFilters()">✕ Réinitialiser</button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div class="tab-content active" id="tab-dashboard">
+    <div class="table-wrap kpi-table-wrap">
+      <table class="kpi-table" id="kpiActivite"></table>
+    </div>
+    <div id="processFlow" class="process-flow"></div>
+    <div class="table-wrap">
+      <div class="kpi-section-title dashboard-retards-title">SUIVI OPÉRATIONNEL PAR DOSSIER</div>
+      <div class="table-controls dashboard-retards-controls">
+        <div class="dashboard-retards-search">
+          <input class="search-input" type="text" id="searchRetard" placeholder="Rechercher dans les retards..." oninput="filterRetardTable()">
+        </div>
+        <div class="kpi-table-scroll dashboard-retards-kpis">
+          <div class="kpi-table kpi-table-auto" id="statsRetard"></div>
+        </div>
+      </div>
+      <div class="table-container">
+        <table id="tableRetard">
+          <thead><tr><th>N° DA</th><th>Désignation</th><th>Filiale</th><th>Acheteur</th><th>Statut</th><th>Criticité</th><th>Type de Retard</th><th>Jours Retard</th><th>Anomalies</th><th>Priorité</th></tr></thead>
+          <tbody id="tbodyRetard"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOSSIERS -->
+  <div class="tab-content" id="tab-dossiers"></div>
+
+  <!-- PV COMITE -->
+  <div class="tab-content" id="tab-pv">
+    <div class="table-wrap">
+      <div class="table-controls">
+        <h2 style="font-size:18px;font-weight:700;color:var(--text1);margin:0 0 8px 0"> Date prévue : <span id="pvComiteDate" style="font-weight:600;color:var(--accent)">—</span></h2>
+        <div class="pv-toolbar-actions">
+          <span id="pvCount" class="pv-count-badge"></span>
+          <button class="reset-btn" onclick="generatePVSynthese()">📊 Synthèse</button>
+          <button class="reset-btn" onclick="generatePVComite()">📥 Générer le PV(Excel)</button>
+          <button class="reset-btn" onclick="exportPVSynthese()" id="exportSyntheseBtn" style="display:none;">📥 Exporter la Synthèse</button>
+        </div>
+      </div>
+      <div id="syntheseContainer" style="display:none;margin-bottom:20px;padding:20px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+        <div style="margin-bottom:20px">
+          <h2 id="syntheseTitle" style="font-size:18px;font-weight:700;color:var(--text);margin:0 0 12px 0">Synthèse des Engagements</h2>
+        </div>
+        <div style="overflow-x:auto;">
+          <table id="tableSynthese" style="width:100%;border-collapse:collapse;"><thead id="syntheseHead"></thead><tbody id="syntheseBody"></tbody></table>
+        </div>
+      </div>
+      <div class="table-container">
+        <div id="pvLoadingIndicator" class="pv-table-loading" role="status" aria-live="polite">
+          <span class="pv-table-loading-spinner" aria-hidden="true"></span>
+          <span>Chargement...</span>
+        </div>
+        <table id="tablePV"><thead id="pvTableHead"></thead><tbody id="pvTableBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <!-- ADMIN -->
+<div class="tab-content" id="tab-admin">
+  <header class="admin-page-intro">
+    <div>
+      <span class="admin-page-kicker">Espace securise</span>
+      <h1>Administration</h1>
+      <p>Gerer les comptes et les donnees achats.</p>
+    </div>
+    <span class="admin-page-status">Acces administrateur</span>
+  </header>
+  
+  <!-- Création de compte réservée aux administrateurs -->
+  <div id="adminCreateSection" class="table-wrap" style="margin-bottom:16px; display:none;">
+    <div class="table-controls">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;margin:0 0 4px 0">Créer un compte</h2>
+      </div>
+    </div>
+    <div style="padding:16px 20px; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; align-items:end;">
+      <div class="field-group">
+        <label for="adminCreateFullName">Nom complet</label>
+        <input id="adminCreateFullName" type="text" placeholder="Jean Rakoto" />
+      </div>
+      <div class="field-group">
+        <label for="adminCreateIdentifier">Identifiant</label>
+        <input id="adminCreateIdentifier" type="text" placeholder="admin2" />
+      </div>
+      <div class="field-group">
+        <label for="adminCreatePassword">Mot de passe</label>
+        <input id="adminCreatePassword" type="password" placeholder="••••••••" />
+      </div>
+      <div class="field-group">
+        <label for="adminCreateRole">Rôle</label>
+        <select id="adminCreateRole">
+          <option value="achat">Achat</option>
+          <option value="admin">Admin</option>
+          <option value="cdg">CDG</option>
+          <option value="validateur">Validateur</option>
+          <option value="back_office">Back office</option>
+        </select>
+      </div>
+      <button id="createAdminBtn" class="btn btn-outline" type="button">Créer le compte</button>
+    </div>
+  </div>
+
+  <div class="table-wrap" style="margin-bottom:16px;">
+    <div class="table-controls">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;margin:0 0 4px 0">Gestion des feuilles Achat</h2>
+        <p style="margin:0;color:#667085;font-size:13px">Gérez le nom, l’activation et les utilisateurs autorisés à consulter chaque feuille acheteur.</p>
+      </div>
+    </div>
+    <div class="admin-sheet-create">
+      <label for="adminNewOwnerName">Nouvelle feuille acheteur</label>
+      <input id="adminNewOwnerName" type="text" maxlength="80" placeholder="Nom de l’acheteur" />
+      <button id="createOwnerSheetBtn" class="btn btn-outline" type="button">Ajouter la feuille</button>
+    </div>
+    <div class="table-container">
+      <table class="admin-users-table admin-sheet-settings-table">
+        <thead>
+          <tr>
+            <th>FEUILLE</th>
+            <th>NOM AFFICHÉ</th>
+            <th>ÉTAT</th>
+            <th>VISIBLE POUR</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="admin-sheet-settings-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NOUVEAU : Section Import/Export -->
+  <div class="table-wrap admin-panel-card" style="margin-bottom:16px;">
+    <div class="table-controls admin-panel-header">
+      <div>
+        <h2>Import / Export des données Achats</h2>
+        <div class="admin-panel-subtitle">Importer des données depuis un fichier Excel ou exporter une plage précise de données.</div>
+      </div>
+    </div>
+    <div class="admin-panel-body">
+      <div class="admin-import-block admin-app-refresh-block">
+        <button class="btn btn-outline admin-import-btn" type="button" onclick="refreshConfiguredData()">
+          🔄 Actualiser l'application
+        </button>
+        <span class="admin-hint">Recharge l'application sans importer ni remplacer de données.</span>
+      </div>
+
+      <div class="admin-import-block">
+        <label for="importExcelInput" class="btn btn-outline admin-import-btn">
+          📂 Importer Excel
+        </label>
+        <input 
+          id="importExcelInput" 
+          type="file" 
+          accept=".xlsx" 
+          style="display:none;" 
+          onchange="importAchatsFromExcel(this.files); this.value='';"
+        />
+        <span class="admin-hint">Format accepté : .xlsx</span>
+      </div>
+
+      <div class="admin-export-block">
+        <div class="admin-date-range">
+          <label>
+            <span>Du</span>
+            <input id="exportStartDate" type="date" />
+          </label>
+          <label>
+            <span>Au</span>
+            <input id="exportEndDate" type="date" />
+          </label>
+        </div>
+        <button class="btn btn-outline admin-export-btn" onclick="exportAchatsToExcel()">
+          📥 Exporter vers Excel
+        </button>
+      </div>
+
+      <div class="admin-export-block">
+        <label for="deleteDataMode">Suppression</label>
+        <select id="deleteDataMode" onchange="toggleDeletePvField()">
+          <option value="all">Tous</option>
+          <option value="pv">Numero PV</option>
+        </select>
+        <input id="deletePvNumber" type="text" placeholder="Saisir le numero PV" disabled />
+        <button class="btn btn-outline btn-danger" type="button" onclick="deleteAdminData()">
+          Supprimer les donnees
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Section existante : Gestion des utilisateurs -->
+  <div class="table-wrap">
+    <div class="table-controls">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;margin:0 0 4px 0">Contrôle des utilisateurs</h2>
+      </div>
+    </div>
+    <div class="table-container">
+      <table class="admin-users-table">
+        <thead>
+          <tr>
+            <th>NOM</th>
+            <th>Statut</th>
+            <th>Rôle</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="users-table-body-admin"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main -->
+
+</div><!-- end appShell -->
+
+<!-- Modal Detail -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div id="modalTitle" style="font-size:16px;font-weight:700"></div><div id="modalSub" style="font-size:12px;color:var(--text3);margin-top:4px"></div></div>
+      <button class="modal-close" onclick="closeModalBtn()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Handsontable - Le moteur DOIT être chargé AVANT les scripts personnalisés -->
+<script src="/src/libs/handsontable.full.min.js"></script>
+
+<script src="/src/pages/config.js"></script>
+<script src="/src/pages/utils.js?v=20261104-1"></script>
+<script src="/src/pages/auth.js?v=20260824-2"></script>
+<script src="/src/pages/admin.js?v=20261106-1"></script>
+<script src="/src/pages/dashboard.js"></script>
+<script src="/src/pages/pv.js?v=20260825-1"></script>
+<script src="/src/pages/achat.js?v=20261105-1"></script>
+<script src="/src/pages/main.js"></script>
+
+<!-- Handsontable - Langues (chargé APRÈS le moteur) -->
+<script src="/src/libs/all.min.js"></script>
+
+</body>
+</html>

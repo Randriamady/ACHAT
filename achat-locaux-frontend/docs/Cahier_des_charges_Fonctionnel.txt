@@ -1,0 +1,700 @@
+CAHIER DES CHARGES FONCTIONNEL
+APPLICATION DE PILOTAGE DES ACHATS LOCAUX
+
+Version : 1.1
+Date : 12/10/2026
+Projet : achat_locaux
+
+======================================================================
+1. OBJET DU DOCUMENT
+======================================================================
+
+Le present cahier des charges decrit les besoins fonctionnels, les regles
+metier, les roles, les parcours utilisateurs, les interfaces et les
+contraintes de l'application de pilotage des achats locaux.
+
+L'application permet de centraliser les dossiers d'achat, de suivre leur
+avancement, de controler les budgets, de preparer les PV du comite achats,
+de suivre les retards et les anomalies, et d'administrer les utilisateurs.
+
+Ce document decrit le perimetre actuellement implemente dans le projet.
+
+======================================================================
+2. PERIMETRE DU PROJET
+======================================================================
+
+2.1 Modules fonctionnels
+
+- Authentification et gestion de session.
+- Navigation entre les espaces de l'application.
+- Gestion des dossiers d'achat.
+- Filtres et recherche des dossiers.
+- Tableau de bord et indicateurs KPI.
+- Suivi des retards et des anomalies.
+- Preparation et export du PV Comite.
+- Synthese des engagements du PV.
+- Administration des utilisateurs.
+- Import et export Excel des achats.
+- Gestion du profil utilisateur.
+- Suivi des utilisateurs connectes.
+- Actualisation silencieuse des donnees.
+
+2.2 Composants techniques concernes
+
+- Interface web servie par Express.
+- Frontend JavaScript et Handsontable.
+- Backend Node.js et Express.
+- Base de donnees PostgreSQL.
+- Stockage local navigateur pour certains etats d'interface.
+- Bibliotheque XLSX pour les imports et exports Excel.
+
+2.3 Hors perimetre
+
+- Gestion comptable complete.
+- Gestion des stocks complete.
+- Workflow de signature electronique externe.
+- Envoi automatique de courriels.
+- Gestion documentaire avec stockage de fichiers joints.
+- Connexion a un annuaire externe non present dans le projet.
+
+======================================================================
+3. ACTEURS ET ROLES
+======================================================================
+
+3.1 Administrateur (admin)
+
+- Acceder a tous les modules autorises.
+- Consulter et modifier les dossiers selon les regles generales.
+- Creer un compte administrateur depuis l'espace Administration.
+- Consulter la liste des utilisateurs.
+- Activer ou desactiver un utilisateur.
+- Supprimer un utilisateur, sauf son propre compte.
+- Importer des donnees Excel.
+- Exporter des donnees Excel.
+- Acceder au PV Comite.
+
+3.2 Validateur (validateur)
+
+- Acceder au tableau de bord.
+- Acceder aux dossiers d'achat.
+- Acceder au PV Comite.
+- Consulter et effectuer les actions permises par l'interface.
+
+3.3 CDG
+
+- Acceder aux dossiers d'achat et au tableau de bord.
+- Modifier le Code Budget.
+- Modifier le Montant Budget.
+- Ne pas modifier les autres champs metier, hors champs calcules
+  explicitement autorises par le traitement serveur.
+
+3.4 Back Office (back_office)
+
+- Acceder aux dossiers d'achat et au tableau de bord.
+- Modifier les informations de commande et de suivi :
+  N° BC, date d'envoi BC, periode BC, nombre de BC, date d'envoi CDG,
+  date de paiement, date prevue de livraison, statut, categorie d'achat,
+  observations, cas exceptionnel, action requise, priorite et budget valide.
+- Ne pas modifier les colonnes reservees aux autres roles.
+
+3.5 Achat (achat)
+
+- Acceder a ses donnees de dossiers selon l'acheteur associe au compte.
+- Consulter les donnees autorisees.
+- Les donnees sont limitees au nom de l'acheteur connecte.
+
+3.6 Utilisateur (utilisateur)
+
+- Acceder a ses propres dossiers selon l'acheteur associe au compte.
+- Ne pas consulter les dossiers d'un autre acheteur.
+- Ne pas supprimer ou modifier un dossier qui ne lui appartient pas.
+
+======================================================================
+4. AUTHENTIFICATION ET SESSION
+======================================================================
+
+4.1 Connexion
+
+L'utilisateur saisit son identifiant et son mot de passe.
+Le serveur verifie que le compte existe et qu'il est actif.
+En cas de succes, le serveur retourne un jeton de session et les
+informations publiques de l'utilisateur.
+
+En cas d'echec, un message fonctionnel est affiche sans reveler de detail
+sensible sur le compte.
+
+4.2 Inscription
+
+Un formulaire permet de demander la creation d'un compte avec :
+- nom complet ;
+- identifiant ;
+- mot de passe ;
+- role.
+
+Un compte administrateur ne peut etre cree que par un administrateur si un
+administrateur existe deja. Le premier compte administrateur peut etre
+initialise par la configuration serveur.
+
+4.3 Verification de session
+
+L'application verifie la session active aupres du serveur.
+Une session invalide ou expiree provoque la deconnexion et le retour a la
+page de connexion.
+
+4.4 Deconnexion
+
+La deconnexion invalide le jeton cote serveur et efface les donnees de
+session locales de l'application.
+
+4.5 Profil
+
+L'utilisateur connecte peut consulter et modifier :
+- son nom complet ;
+- son identifiant ;
+- son avatar si disponible ;
+- son mot de passe.
+
+L'identifiant doit rester unique.
+
+4.6 Presence
+
+L'application affiche les utilisateurs connectes.
+La liste est actualisee periodiquement et lors des changements de session
+entre onglets ou fenetres.
+
+======================================================================
+5. NAVIGATION ET STRUCTURE DE L'INTERFACE
+======================================================================
+
+L'interface contient les espaces suivants :
+
+- Achats : tableau principal des dossiers.
+- Tableau de Bord : indicateurs et syntheses.
+- PV Comite : preparation et export du PV.
+- Administration : utilisateurs, import et export Excel.
+
+La navigation doit :
+- respecter les droits du role connecte ;
+- conserver l'onglet actif apres actualisation ;
+- conserver les filtres propres a chaque onglet ;
+- afficher des messages d'etat et des notifications en cas d'action.
+
+La barre globale de filtres est affichee sur le Tableau de Bord et masquee
+dans les autres espaces, notamment Achats. Ce masquage concerne uniquement
+l'interface : il ne supprime ni ne reinitialise les criteres deja conserves.
+
+======================================================================
+6. MODULE ACHATS / DOSSIERS
+======================================================================
+
+6.1 Objectif
+
+Le module Achats presente les dossiers d'achat dans un tableau editable,
+filtrable et charge progressivement pour supporter de gros volumes.
+
+6.2 Colonnes fonctionnelles
+
+Le dossier peut contenir notamment les champs suivants :
+
+- N° DA ; Date ; Date de reception physique ; Filiale ; Departement demandeur ;
+- Designation demandee ; Designation commandee ; Code Budget ;
+- Montant Budget ; Ecart Budget ; Statut Budget ;
+- Mode de Consultation ; Fournisseur Retenu ; Fournisseurs Consultes ;
+- Prix de Reference ; Prix Unitaire ; Ecart (%) ; Quantite ; Unite ;
+- Montant HT ; Gain Achat ; Devise ; Type de Paiement ; Delai Paiement ;
+- Statut Paiement ; Date Envoi Consultation ; Date Envoi TCO ;
+- Date Validation Filiale ; Date Validation Comite ; N° PV ;
+- N° BC ; Date Envoi BC ; Periode BC ; Nombre de BC ; Date Envoi CDG ;
+- Date de Paiement ; Date Prevue Livraison ; Statut ; Categorie Achat ;
+- Acheteur ; OBS ; Cas Exceptionnel ; Action Requise ; Priorite ;
+- Budget Valide.
+
+6.3 Consultation du tableau
+
+- Affichage dans Handsontable.
+- En-tetes de colonnes fixes pendant le defilement interne.
+- En-tetes positionnes sous le menu de navigation.
+- Pied de page fixe et toujours visible.
+- Hauteur du tableau adaptee a la hauteur de l'ecran.
+- Scroll de la page Achats desactive ; seul le tableau defile.
+- Lignes entierement vides placees en dernier.
+- Conservation de l'ordre des lignes non vides.
+- Ligne vide disponible en fin de tableau pour la creation rapide si le role
+  est autorise.
+
+6.4 Chargement progressif
+
+- Le serveur retourne par defaut des lots de 500 lignes.
+- Le premier lot est charge a l'ouverture du module.
+- Lorsque l'utilisateur atteint le bas du tableau, le lot suivant est charge.
+- Les lots sont ajoutes sans revenir au debut du tableau.
+- Les doublons sont evites par l'identifiant de ligne.
+- Le total disponible est transmis par l'en-tete X-Total-Count.
+- Les filtres actifs sont reappliques apres l'ajout d'un lot.
+- Le rafraichissement complet en arriere-plan ne doit pas detruire le
+  positionnement courant du tableau Achats.
+
+6.5 Filtres principaux
+
+Les criteres de filtrage comprennent notamment :
+- acheteur ;
+- filiale ;
+- departement ;
+- priorite ;
+- circuit ;
+- anomalies ;
+- criticite ;
+- retard ;
+- categorie de retard ;
+- mois ;
+- annee.
+
+La barre globale contenant ces filtres est masquee dans l'espace Achats.
+Les criteres deja selectionnes et conserves restent soumis aux regles de
+filtrage existantes ; le masquage de la barre ne modifie pas les donnees ni
+les traitements de filtrage. Les filtres par colonne Handsontable restent
+distincts de cette barre.
+
+Les criteres de filtrage doivent :
+- etre combinables ;
+- etre reappliques apres chargement d'un lot ;
+- etre conserves lors d'un changement d'onglet ;
+- etre restaurables apres actualisation ;
+- pouvoir etre reinitialises par une action unique.
+
+6.6 Filtres Handsontable
+
+Le tableau peut utiliser les conditions de filtrage par colonne de
+Handsontable. L'etat des conditions doit etre preserve lors des operations
+qui ne necessitent pas un rechargement complet.
+
+6.7 Edition
+
+Les cellules autorisees sont editables selon le role.
+Les colonnes calculees ou automatiques sont visuellement distinguees et
+protegees contre une modification non autorisee.
+
+Les valeurs numeriques doivent accepter les formats usuels avec virgule ou
+point decimal. Les valeurs vides sont converties en valeur nulle lors de
+la persistance.
+
+6.8 Sauvegarde
+
+L'application doit permettre :
+- la modification d'une ligne ;
+- la modification de plusieurs lignes ;
+- l'insertion de nouvelles lignes ;
+- la suppression d'une ligne ;
+- la suppression de plusieurs lignes ;
+- la confirmation avant suppression ;
+- l'affichage du resultat de sauvegarde.
+
+Le serveur doit verifier les droits meme si l'interface a autorise une
+cellule. Le client ne constitue pas le seul niveau de securite.
+
+6.9 Calculs automatiques
+
+Les champs calcules peuvent inclure :
+- Montant HT ;
+- Ecart Budget ;
+- Statut Budget ;
+- Ecart (%) ;
+- Gain Achat ;
+- criticite ;
+- retards ;
+- anomalies ;
+- nombre de jours de retard.
+
+======================================================================
+7. TABLEAU DE BORD ET KPI
+======================================================================
+
+7.1 Objectif
+
+Le tableau de bord fournit une vision synthetique de l'activite d'achat a
+partir des donnees filtrees ou chargees.
+
+7.2 Indicateurs principaux
+
+- DA TOTAL (distinct) : nombre distinct de demandes d'achat.
+- TOTAL BC : nombre distinct de demandes d'achat ayant un numero de BC.
+- En attente CDG : dossiers sans montant budget et sans date de validation
+  comite.
+- Valide comite : dossiers dont la date de validation comite est renseignee.
+- Attente comite : dossiers avec statut budget ou code budget Stock/Stocks,
+  sans date de validation comite.
+- Dossiers eligibles PV : groupes de dossiers eligibles au PV selon les
+  regles du module PV.
+
+Les deux indicateurs DA TOTAL et TOTAL BC sont presentes dans la meme rangee
+que les quatre indicateurs budget et comite ci-dessus. Cette rangee reste
+unique ; sur les ecrans etroits, elle peut defiler horizontalement. Les
+autres indicateurs sont accessibles via la commande « Voir plus ».
+
+Les indicateurs complementaires peuvent inclure :
+- TOTAL PV : nombre distinct de PV.
+- Cas exceptionnel ;
+- BC Stand-by et BC en attente de choix filiale ;
+- compteurs de retards par etape ;
+- dossiers Attention et Critique.
+
+7.3 Criticite
+
+Les dossiers sont classes en :
+- Normal ;
+- Attention ;
+- Critique ;
+- Tres Critique.
+
+Un cas exceptionnel peut etre traite selon une regle specifique et etre
+reclasse dans la criticite correspondante.
+
+7.4 Tooltips et details
+
+Un KPI peut afficher un detail au survol ou au clic :
+- valeurs distinctes ;
+- designation ;
+- filiale ;
+- dossiers concernes ;
+- informations de PV ou de BC.
+
+Un clic sur un detail peut rediriger vers Achats avec un filtre de recherche.
+
+======================================================================
+8. MODULE RETARDS ET ANOMALIES
+======================================================================
+
+8.1 Etapes suivies
+
+- Consultation ;
+- Envoi TCO ;
+- Validation Filiale ;
+- Validation Comite ;
+- Signature BC ;
+- Livraison.
+
+8.2 Fonctionnalites
+
+- Compter les retards par etape.
+- Afficher le niveau de criticite.
+- Detecter et compter les anomalies de processus.
+- Afficher les dossiers en retard, en anomalie ou tres critiques.
+- Rechercher dans les dossiers de retard par N° DA, designation ou filiale.
+- Ouvrir le detail d'un dossier.
+- Afficher les jours de retard et la priorite.
+
+Les retards avec anomalie peuvent etre distingues des retards sans anomalie
+pour les indicateurs de suivi.
+
+======================================================================
+9. MODULE PV COMITE
+======================================================================
+
+9.1 Acces
+
+Le module est accessible aux roles admin et validateur.
+
+9.2 Recherche multi-criteres
+
+La recherche PV accepte plusieurs termes separes par espace, virgule,
+point-virgule ou retour a la ligne.
+La recherche peut porter notamment sur :
+- N° PV ;
+- N° DA ;
+- fournisseur retenu ;
+- filiale ;
+- acheteur ;
+- designation commandee ;
+- statut budget.
+
+La comparaison ignore les differences de casse et d'accents. Les valeurs
+exactes sont privilegiees, avec correspondance partielle controlee.
+
+9.3 Eligibilite PV
+
+Un dossier est eligible si :
+- la date de validation comite est vide ; et
+- le statut budget est renseigne, ou le code budget correspond a Stock ou
+  Stocks sans tenir compte de la casse.
+
+9.4 Regroupement
+
+Les dossiers sont regroupes selon les informations metier suivantes :
+- N° DA ;
+- fournisseur retenu ;
+- statut budget ;
+- type de paiement ;
+- N° PV lorsque necessaire.
+
+9.5 Agregation
+
+Pour un groupe de dossiers :
+- montant budget : maximum disponible ;
+- montant HT : somme ;
+- quantite : somme ;
+- prix unitaire : moyenne ponderee par quantite ;
+- prix de reference : moyenne ponderee par quantite ;
+- ecart budget : somme ;
+- ecart pourcentage : moyenne ponderee par montant HT ;
+- gain achat : somme ;
+- designation commandee : concatenation des designations ;
+- champs texte et dates : premiere valeur non vide ;
+- PV : derniere valeur non vide privilegiee.
+
+Les valeurs numeriques agregees doivent rester numeriques pour permettre un
+formatage coherent.
+
+9.6 Edition PV
+
+Le tableau PV permet notamment de :
+- consulter les lignes eligibles ;
+- editer les observations ;
+- gerer la decision via une case a cocher ;
+- conserver les decisions localement ;
+- conserver les valeurs PV modifiees localement ;
+- afficher les statuts budget avec un code couleur.
+
+9.7 Export PV
+
+L'utilisateur autorise peut :
+- generer un PV Comite au format Excel ;
+- generer une synthese des engagements ;
+- exporter la synthese ;
+- afficher la date du prochain comite ;
+- afficher le nombre de PV et les informations de titre.
+
+======================================================================
+10. MODULE ADMINISTRATION
+======================================================================
+
+10.1 Gestion des utilisateurs
+
+L'administrateur peut :
+- consulter la liste des utilisateurs ;
+- voir le nom, le statut et le role ;
+- activer ou desactiver un compte ;
+- supprimer un compte ;
+- ne pas supprimer son propre compte.
+
+10.2 Creation d'un administrateur
+
+Un formulaire permet de renseigner le nom, l'identifiant et le mot de passe.
+La creation est reservee a un administrateur connecte lorsque la plateforme
+possede deja un compte administrateur.
+
+10.3 Import Excel Achats
+
+- Accepter uniquement les fichiers .xlsx.
+- Lire la premiere feuille du classeur.
+- Convertir les colonnes Excel vers les champs de la base.
+- Convertir les dates Excel.
+- Convertir les nombres et booleens.
+- Ignorer les lignes vides.
+- Demander confirmation avant insertion.
+- Afficher le nombre de lignes inserees, ignorees et en erreur.
+- Rafraichir les donnees apres import.
+- Ne pas ecraser les donnees existantes par defaut.
+
+10.4 Export Excel Achats
+
+- Exporter les donnees de la base au format Excel.
+- Permettre une date de debut et une date de fin.
+- Refuser une plage dont la date de debut est posterieure a la date de fin.
+- Autoriser l'export uniquement a l'administrateur.
+
+======================================================================
+11. PERSISTANCE LOCALE ET ETAT D'INTERFACE
+======================================================================
+
+Les informations d'interface suivantes peuvent etre conservees dans le
+navigateur :
+
+- session utilisateur et jeton ;
+- onglet actif ;
+- filtres Achats ;
+- colonnes cachees ;
+- etat Cas Exceptionnel ;
+- decisions PV ;
+- valeurs persistantes du PV ;
+- certaines informations de cache et d'audit.
+
+Les donnees locales doivent etre effacees a la deconnexion lorsqu'elles
+contiennent des informations liees a la session.
+
+======================================================================
+12. API FONCTIONNELLE
+======================================================================
+
+12.1 Authentification
+
+POST /api/auth/login       Connexion.
+POST /api/auth/register    Creation d'un compte.
+GET  /api/auth/me          Verification de session.
+GET  /api/auth/online      Liste des utilisateurs connectes.
+POST /api/auth/logout      Deconnexion.
+PATCH /api/auth/profile    Modification du profil.
+
+12.2 Achats
+
+GET  /api/achats?limit=&offset=       Lecture paginee.
+POST /api/achats                      Insertion d'une ou plusieurs lignes.
+PUT  /api/achats/:id                  Modification d'une ligne.
+PUT  /api/achats/batch                Insertion et modification en lot.
+DELETE /api/achats/:id                Suppression d'une ligne.
+DELETE /api/achats                    Suppression de plusieurs lignes.
+POST /api/achats/resequence           Resequencement reserve a l'admin.
+
+12.3 Utilisateurs
+
+GET /api/users                        Liste des utilisateurs.
+PATCH /api/users/:id/toggle-active    Activation ou desactivation.
+DELETE /api/users/:id                 Suppression reservee a l'admin.
+
+12.4 Administration
+
+POST /api/admin/import-achats         Import Excel.
+GET  /api/admin/export-achats         Export Excel.
+
+Toutes les routes protegees doivent verifier le jeton et les droits du role.
+
+======================================================================
+13. EXIGENCES DE SECURITE
+======================================================================
+
+- Les mots de passe doivent etre stockes sous forme hachee.
+- Les routes privees doivent exiger une session valide.
+- Les permissions doivent etre verifiees cote serveur.
+- Un utilisateur limite a ses donnees ne doit pas pouvoir contourner ce
+  perimetre avec une requete directe.
+- Les identifiants doivent etre uniques.
+- Les donnees importees doivent etre nettoyees et converties avant insertion.
+- Les valeurs numeriques invalides doivent etre neutralisees plutot que
+  provoquer une erreur SQL.
+- Les donnees internes du serveur ne doivent pas etre exposees au client.
+- Les messages d'erreur ne doivent pas divulguer de secrets.
+
+======================================================================
+14. EXIGENCES DE PERFORMANCE ET D'ERGONOMIE
+======================================================================
+
+- Charger les achats par lots de 500 lignes.
+- Eviter le rechargement complet de la grille pendant le scroll.
+- Preserver le filtre et la position courante apres ajout d'un lot.
+- Limiter les rendus complets Handsontable.
+- Traiter les mises a jour lourdes par lots ou par tranches.
+- Maintenir une interface utilisable sur petits et grands ecrans.
+- Adapter automatiquement la hauteur du tableau a la hauteur du viewport.
+- Garder l'en-tete du tableau et le pied de page visibles.
+- Afficher un message d'etat pendant les chargements et sauvegardes.
+- Actualiser la presence utilisateur sans ralentir le tableau Achats.
+- Eviter les appels repetitifs ou concurrents inutiles.
+
+======================================================================
+15. CRITERES DE RECETTE FONCTIONNELLE
+======================================================================
+
+A. Authentification
+
+- Un compte actif peut se connecter.
+- Un compte inactif ne peut pas se connecter.
+- Une session invalide retourne vers la connexion.
+- La deconnexion efface la session locale et serveur.
+
+B. Roles
+
+- Un utilisateur non admin ne voit pas l'espace Administration.
+- Un utilisateur non validateur ou admin ne voit pas le PV Comite.
+- Un CDG ne peut modifier que les champs autorises.
+- Un Back Office ne peut modifier que ses champs autorises.
+- Un utilisateur limite ne voit que ses dossiers.
+
+C. Achats
+
+- Les 500 premieres lignes s'affichent au chargement.
+- La barre globale de filtres est masquee dans l'espace Achats.
+- Le masquage de la barre ne reinitialise pas les criteres de filtre
+  conserves et ne modifie pas le fonctionnement des filtres.
+- Le scroll au bas charge le lot suivant.
+- Aucun retour automatique au premier lot ne se produit.
+- Les lignes vides apparaissent a la fin.
+- Les filtres restent appliques apres ajout d'un lot.
+- L'en-tete reste visible sous le menu.
+- Le pied de page reste visible pendant le scroll.
+- La page Achats ne defile pas en dehors du tableau.
+- La hauteur du tableau s'adapte a l'ecran.
+
+D. Tableau de bord et retards
+
+- Les KPI correspondent aux donnees filtrees.
+- DA TOTAL, TOTAL BC et les quatre KPI budget/comite apparaissent dans une
+  seule rangee ; celle-ci peut defiler horizontalement sur petit ecran.
+- Les autres KPI restent accessibles via « Voir plus ».
+- Les details KPI sont consultables.
+- Les retards sont regroupes par etape.
+- Les anomalies et niveaux de criticite sont visibles.
+- La recherche des retards filtre les lignes attendues.
+
+E. PV Comite
+
+- Seuls les dossiers eligibles sont affiches.
+- Les termes de recherche multiples fonctionnent.
+- Le regroupement produit une ligne par groupe attendu.
+- Les sommes et moyennes ponderees sont correctes.
+- Les decisions restent conservees apres actualisation.
+- Le fichier Excel PV est genere avec les informations attendues.
+
+F. Administration
+
+- L'import valide les extensions et ignore les lignes vides.
+- Les dates et nombres Excel sont correctement convertis.
+- Le resultat d'import indique les lignes inserees et les erreurs.
+- L'export respecte la plage de dates.
+- La gestion des comptes met a jour le statut et la liste.
+
+======================================================================
+16. DONNEES ET REGLES DE QUALITE
+======================================================================
+
+- Les champs obligatoires doivent etre identifies par le metier avant mise
+  en production.
+- Les dates doivent etre stockees dans un format coherent et affichees au
+  format local attendu.
+- Les nombres doivent conserver leur nature numerique en base et dans les
+  agregations.
+- Les lignes vides ne doivent pas etre inserees en base.
+- Les valeurs inconnues doivent etre signalees ou traitees selon une regle
+  explicite.
+- Les imports doivent produire un compte rendu exploitable.
+- Les actions importantes doivent afficher un retour utilisateur.
+
+======================================================================
+17. LIVRABLES ATTENDUS
+======================================================================
+
+- Application web fonctionnelle.
+- Backend Node.js et API Express.
+- Schema et initialisation PostgreSQL.
+- Interface Achats avec chargement progressif.
+- Tableau de bord KPI.
+- Suivi des retards et anomalies.
+- Module PV Comite et exports Excel.
+- Module Administration.
+- Documentation fonctionnelle.
+- Scenarios de recette et verification des droits.
+
+======================================================================
+18. EVOLUTIONS POSSIBLES
+======================================================================
+
+- Recherche serveur avancee pour depasser les volumes actuels.
+- Agregation des KPI cote serveur pour les bases tres volumineuses.
+- Historique complet des modifications par utilisateur.
+- Notifications par email ou dans l'application.
+- Pieces jointes et archivage documentaire.
+- Workflow configurable par filiale et type d'achat.
+- Export PDF du PV.
+- Tests automatises frontend, backend et integration.
+
+======================================================================
+FIN DU CAHIER DES CHARGES
+======================================================================

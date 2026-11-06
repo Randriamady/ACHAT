@@ -1,0 +1,81 @@
+EXPLICATION DU FICHIER vite.config.js
+======================================
+
+Le fichier vite.config.js configure le fonctionnement du frontend avec Vite.
+
+1. Dossier du frontend
+----------------------
+
+Vite utilise le dossier public/ comme point d'entree de l'application.
+Le fichier principal est :
+
+  public/index.html
+
+Les fichiers JavaScript et CSS se trouvent dans le dossier src/.
+
+2. Developpement
+----------------
+
+Pour demarrer le frontend :
+
+  npm run dev
+
+Le frontend est disponible sur :
+
+  http://localhost:3000
+
+Quand l'application appelle une adresse qui commence par /api, Vite redirige
+la requete vers le backend :
+
+  http://localhost:8000
+
+Cela permet au frontend et au backend de fonctionner ensemble en local.
+
+3. Production
+--------------
+
+Pour creer la version a deployer :
+
+  npm run build
+
+Vite cree le dossier dist/.
+Ce dossier contient notamment :
+
+- index.html : la page principale ;
+- src/ : les fichiers JavaScript, CSS et bibliotheques necessaires ;
+- assets/ : les fichiers generes par Vite.
+
+Le dossier dist/ doit etre copie sur le serveur web de production.
+
+4. Adresse du backend
+---------------------
+
+Par defaut, en developpement, le backend est utilise sur :
+
+  http://localhost:8000
+
+Pour utiliser une autre adresse, definir la variable suivante dans un fichier
+.env.production avant de lancer le build :
+
+  VITE_API_BASE_URL=http://adresse-du-backend:8000
+
+Exemple :
+
+  VITE_API_BASE_URL=http://192.168.1.50:8000
+
+Si le frontend et le backend sont accessibles par le meme domaine, cette
+variable peut rester vide et les appels /api utiliseront le meme domaine.
+
+5. Resume des roles
+-------------------
+
+- Vite demarre le frontend en developpement sur le port 3000 ;
+- Vite redirige les appels /api vers le backend en developpement ;
+- Vite prepare les fichiers de production dans dist/ ;
+- VITE_API_BASE_URL permet de changer l'adresse du backend.
+
+Commandes principales :
+
+  npm install       Installer les dependances
+  npm run dev       Demarrer le developpement
+  npm run build     Creer la version production
