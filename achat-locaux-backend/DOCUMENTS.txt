@@ -1,0 +1,118 @@
+# Deploiement de l'application Achat
+
+## PostgreSQL
+
+La base doit etre creee par l'administrateur PostgreSQL avant le demarrage de l'application.
+L'application ne cree pas la base automatiquement.
+
+Exemple :
+
+```sql
+CREATE USER achat_app WITH PASSWORD 'mot_de_passe_fort';
+CREATE DATABASE achat OWNER achat_app;
+```
+
+Renseigner ensuite `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et `DB_PASSWORD` dans `backend/.env`.
+Le compte PostgreSQL utilise par l'application doit pouvoir creer les tables dans la base.
+
+## Demarrage
+
+Depuis le dossier `backend` :
+
+```bash
+npm run migrate
+npm start
+```
+
+`npm start` execute aussi les migrations avant d'ouvrir le port HTTP. Les migrations appliquees sont
+enregistrees dans la table `schema_migrations`.
+
+## Architecture
+
+- Frontend Vite : construit dans `frontend/dist`.
+- Backend Node.js : API sur le port `8000`.
+- PostgreSQL : base de donnees du backend.
+- Nginx ou IIS : sert le frontend en production.
+
+## Role des fichiers principaux
+
+### `backend/server.js`
+
+Ce fichier demarre le backend Node.js :
+
+- il ouvre le port `8000` sur toutes les interfaces reseau ;
+- il autorise uniquement les origines definies dans `CORS_ORIGINS` ;
+- il active les routes `/api/auth`, `/api/achats`, `/api/users` et `/api/admin` ;
+- il communique avec PostgreSQL et gere les erreurs de l'API.
+
+### `frontend/vite.config.js`
+
+Ce fichier configure Vite :
+
+- il sert le frontend sur le port `3000` en developpement ;
+- il lit `VITE_API_BASE_URL` dans le fichier `.env` ;
+- il redirige `/api` vers le backend en developpement ;
+- il construit les fichiers frontend dans `frontend/dist`.
+
+## Variables d'environnement
+
+### Backend : `backend/.env`
+
+```env
+NODE_ENV=production
+PORT=8000
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=achat
+DB_INITIAL_DATABASE=postgres
+DB_USER=postgres
+DB_PASSWORD=mot_de_passe
+JWT_SECRET=secret_long_et_aleatoire
+CORS_ORIGINS=http://IP_DU_SERVEUR
+IMPORT_FOLDER_PATH=/mnt/partage-achat
+
+# Compte administrateur créé automatiquement au premier démarrage
+AUTH_IDENTIFIER=admin
+AUTH_PASSWORD=CHANGER_CE_MOT_DE_PASSE
+AUTH_NAME=Administrateur
+```
+
+### Import Excel depuis le partage reseau
+
+Le backend lit les fichiers Excel depuis `IMPORT_FOLDER_PATH`. Sous Linux ou dans un conteneur,
+le partage Windows doit d'abord etre monte sur l'hote, puis expose au conteneur, par exemple :
+
+```bash
+sudo mkdir -p /mnt/partage-achat
+sudo mount -t cifs //192.168.20.204/partage-sipromad/PARTAGE-ACHAT/REPORTING_ACHAT_LOCAL/ACHAT \
+	/mnt/partage-achat -o credentials=/root/.smbcredentials,ro,vers=3.0
+```
+
+Demarrer ensuite le conteneur avec le repertoire monte en lecture seule et la variable suivante :
+
+```bash
+docker run -e IMPORT_FOLDER_PATH=/mnt/partage-achat \
+	-v /mnt/partage-achat:/mnt/partage-achat:ro ...
+```
+
+Sans cette configuration, l'actualisation depuis le dossier renvoie une erreur indiquant que le
+dossier d'import est introuvable ou non monte.
+
+### Création automatique du premier administrateur
+
+Au premier démarrage du backend, la base et la table `users` sont créées automatiquement. Si le compte défini par `AUTH_IDENTIFIER` n'existe pas, il est créé avec le rôle `admin` et le mot de passe défini par `AUTH_PASSWORD`.
+
+Sur un nouveau serveur :
+
+1. Installer et démarrer PostgreSQL.
+2. Créer `backend/.env` à partir de l'exemple ci-dessus et remplacer `AUTH_PASSWORD` par un mot de passe long et unique.
+3. Installer les dépendances puis démarrer le backend : `cd backend`, `npm install`, `npm start`.
+4. Se connecter avec `AUTH_IDENTIFIER` et `AUTH_PASSWORD`, puis créer les autres comptes depuis l'administration.
+
+Si `AUTH_IDENTIFIER` et `AUTH_PASSWORD` ne sont pas définis, l'application utilise temporairement `admin` / `admin123`. Cette configuration est uniquement prévue pour le développement local et doit être remplacée sur un serveur accessible par le réseau.
+
+### Frontend : `frontend/.env.production`
+
+```env
+VITE_API_BASE_URL=http://IP_DU_SERVEUR:8000
+```

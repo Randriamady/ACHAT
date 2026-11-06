@@ -1,0 +1,2 @@
+ALTER TABLE achats
+ALTER COLUMN quantite TYPE NUMERIC USING quantite::NUMERIC;

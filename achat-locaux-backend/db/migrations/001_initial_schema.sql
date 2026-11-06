@@ -1,0 +1,73 @@
+CREATE TABLE IF NOT EXISTS achats (
+  id SERIAL PRIMARY KEY,
+  numero_da TEXT,
+  date DATE,
+  date_reception_physique DATE,
+  filiale TEXT,
+  departement_demandeur TEXT,
+  designation_demandee TEXT,
+  designation_commandee TEXT,
+  code_budget TEXT,
+  montant_budget NUMERIC(18,2),
+  ecart_budget NUMERIC(18,2),
+  statut_budget TEXT,
+  mode_consultation TEXT,
+  fournisseur_retenu TEXT,
+  fournisseurs_consultes TEXT,
+  prix_reference NUMERIC(18,2),
+  prix_unitaire NUMERIC(18,2),
+  ecart_pourcentage NUMERIC(5,2),
+  quantite INTEGER,
+  unite TEXT,
+  montant_ht NUMERIC(18,2),
+  gain_achat NUMERIC(18,2),
+  devise TEXT,
+  type_paiement TEXT,
+  delai_paiement TEXT,
+  statut_paiement TEXT,
+  date_envoi_consultation DATE,
+  date_envoi_tco DATE,
+  date_valid_filiale DATE,
+  date_valid_comite DATE,
+  pv_numero TEXT,
+  num_bc TEXT,
+  date_envoi_bc DATE,
+  periode_bc TEXT,
+  nb_bc INTEGER,
+  date_envoi_cdg DATE,
+  date_paiement DATE,
+  date_prevue_livraison DATE,
+  date_reception_facture DATE,
+  numero_facture TEXT,
+  bl TEXT,
+  be TEXT,
+  date_transmission DATE,
+  statut TEXT,
+  categorie_achat TEXT,
+  acheteur TEXT,
+  obs TEXT,
+  cas_exceptionnel BOOLEAN DEFAULT FALSE,
+  action_requise TEXT,
+  priorite TEXT,
+  budget_valide BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  identifier TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  name TEXT,
+  avatar_url TEXT,
+  role TEXT NOT NULL DEFAULT 'utilisateur',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_achats_acheteur ON achats(acheteur);
+CREATE INDEX IF NOT EXISTS idx_achats_acheteur_id ON achats(acheteur, id);
+CREATE INDEX IF NOT EXISTS idx_achats_updated_at ON achats(updated_at);
+CREATE INDEX IF NOT EXISTS idx_achats_acheteur_updated_at ON achats(acheteur, updated_at);
+CREATE INDEX IF NOT EXISTS idx_achats_updated_at_id ON achats(updated_at, id);

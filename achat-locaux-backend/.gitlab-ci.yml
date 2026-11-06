@@ -1,0 +1,49 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+  IMAGE_LATEST: $CI_REGISTRY/$CI_PROJECT_PATH:latest
+  IMAGE_COMMIT: $CI_REGISTRY/$CI_PROJECT_PATH:$IMAGE_TAG
+  CONTAINER_NAME: "achat_locaux_backend"
+
+build-image:
+  stage: build
+  tags:
+    - srv-gl-runner-01-shell
+  script:
+    - podman login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - podman build -t $IMAGE_COMMIT -t $IMAGE_LATEST .
+    - podman push $IMAGE_COMMIT
+    - podman push $IMAGE_LATEST
+    - podman logout $CI_REGISTRY
+  only:
+    - main
+  
+deploy-to-prod:
+  stage: deploy
+  tags:
+    - srv-app-01-shell
+    
+  script:
+    - podman login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - podman pull $IMAGE_LATEST
+
+    - podman secret create achat_locaux_backend_env /opt/data/achat-locaux-backend/env || true
+    
+    - podman stop $CONTAINER_NAME || true
+    - podman rm $CONTAINER_NAME || true
+
+    - |
+      podman run -d --name $CONTAINER_NAME \
+        --secret achat_locaux_backend_env,target=/app/.env,mode=0444 \
+        --userns=keep-id \
+        --user 1001:1001 \
+        -p 8003:8000 \
+        $IMAGE_LATEST
+        
+    - podman logout $CI_REGISTRY
+
+  only:
+    - main

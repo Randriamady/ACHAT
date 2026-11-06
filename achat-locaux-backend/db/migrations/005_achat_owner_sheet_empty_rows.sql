@@ -1,0 +1,2 @@
+ALTER TABLE achat_sheet_settings
+ADD COLUMN IF NOT EXISTS show_empty_rows BOOLEAN NOT NULL DEFAULT TRUE;
